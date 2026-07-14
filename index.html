@@ -422,13 +422,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📱 Batch QR Code Generator</h1>
+            <h1>Batch QR Code Generator</h1>
             <p>Generate hundreds of QR codes in seconds</p>
         </div>
 
         <div class="card">
             <div class="card-title">
-                <span class="icon">📝</span>
+                <span class="icon">&#9998;</span>
                 Enter URLs / Text
             </div>
             <textarea id="inputText" placeholder="Paste your URLs or text here, one per line...
@@ -437,12 +437,12 @@ Example:
 https://example.com
 https://google.com
 Hello World"></textarea>
-            <div class="hint">💡 One item per line. Empty lines are skipped automatically.</div>
+            <div class="hint">Tip: One item per line. Empty lines are skipped automatically.</div>
         </div>
 
         <div class="card">
             <div class="card-title">
-                <span class="icon">⚙️</span>
+                <span class="icon">&#9881;</span>
                 Settings
             </div>
             <div class="settings-row">
@@ -468,14 +468,14 @@ Hello World"></textarea>
                     <input type="color" id="bgColor" value="#ffffff">
                 </div>
             </div>
-            <button class="btn btn-primary" onclick="generateAll()">
-                <span>🚀</span> Generate All QR Codes
+            <button class="btn btn-primary" id="generateBtn">
+                <span>&#128640;</span> Generate All QR Codes
             </button>
         </div>
 
         <div class="card hidden" id="resultsCard">
             <div class="card-title">
-                <span class="icon">🎨</span>
+                <span class="icon">&#127912;</span>
                 Results
             </div>
 
@@ -500,11 +500,11 @@ Hello World"></textarea>
             </div>
 
             <div class="btn-row">
-                <button class="btn btn-success" onclick="downloadAllZip()">
-                    <span>📦</span> Download All (ZIP)
+                <button class="btn btn-success" id="downloadZipBtn">
+                    <span>&#128230;</span> Download All (ZIP)
                 </button>
-                <button class="btn btn-secondary" onclick="clearAll()">
-                    <span>🗑️</span> Clear All
+                <button class="btn btn-secondary" id="clearBtn">
+                    <span>&#128465;</span> Clear All
                 </button>
             </div>
 
@@ -517,62 +517,43 @@ Hello World"></textarea>
     <script>
         let generatedQRCodes = [];
 
-        function showToast(message, duration = 2000) {
-            const toast = document.getElementById('toast');
+        function showToast(message, duration) {
+            duration = duration || 2000;
+            var toast = document.getElementById('toast');
             toast.textContent = message;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+            setTimeout(function() {
+                toast.classList.remove('show');
+            }, duration);
         }
 
         function sanitizeFilename(text) {
             return text.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) || 'qr_code';
         }
 
-        async function copyImage(canvas, btn) {
+        function copyImage(canvas, btn) {
             try {
-                canvas.toBlob(async (blob) => {
+                canvas.toBlob(function(blob) {
                     try {
-                        await navigator.clipboard.write([
-                            new ClipboardItem({ 'image/png': blob })
-                        ]);
-                        btn.textContent = '✅ Copied!';
-                        btn.classList.add('copied');
-                        showToast('Image copied to clipboard!');
-                        setTimeout(() => {
-                            btn.textContent = '📋 Copy';
-                            btn.classList.remove('copied');
-                        }, 2000);
-                    } catch (err) {
-                        // Fallback for browsers that don't support clipboard.write
-                        const img = document.createElement('img');
-                        img.src = canvas.toDataURL('image/png');
-                        const div = document.createElement('div');
-                        div.contentEditable = true;
-                        div.appendChild(img);
-                        document.body.appendChild(div);
-
-                        const range = document.createRange();
-                        range.selectNode(div);
-                        const sel = window.getSelection();
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-
-                        try {
-                            document.execCommand('copy');
-                            btn.textContent = '✅ Copied!';
-                            btn.classList.add('copied');
-                            showToast('Image copied to clipboard!');
-                        } catch (e) {
-                            showToast('Copy failed. Try downloading instead.');
+                        if (navigator.clipboard && navigator.clipboard.write) {
+                            navigator.clipboard.write([
+                                new ClipboardItem({ 'image/png': blob })
+                            ]).then(function() {
+                                btn.textContent = 'Copied!';
+                                btn.classList.add('copied');
+                                showToast('Image copied to clipboard!');
+                                setTimeout(function() {
+                                    btn.textContent = 'Copy';
+                                    btn.classList.remove('copied');
+                                }, 2000);
+                            }).catch(function() {
+                                fallbackCopy(canvas, btn);
+                            });
+                        } else {
+                            fallbackCopy(canvas, btn);
                         }
-
-                        document.body.removeChild(div);
-                        sel.removeAllRanges();
-
-                        setTimeout(() => {
-                            btn.textContent = '📋 Copy';
-                            btn.classList.remove('copied');
-                        }, 2000);
+                    } catch (err) {
+                        fallbackCopy(canvas, btn);
                     }
                 }, 'image/png');
             } catch (err) {
@@ -580,39 +561,71 @@ Hello World"></textarea>
             }
         }
 
+        function fallbackCopy(canvas, btn) {
+            var img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png');
+            var div = document.createElement('div');
+            div.contentEditable = true;
+            div.appendChild(img);
+            document.body.appendChild(div);
+
+            var range = document.createRange();
+            range.selectNode(div);
+            var sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            try {
+                document.execCommand('copy');
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                showToast('Image copied to clipboard!');
+            } catch (e) {
+                showToast('Copy failed. Try downloading instead.');
+            }
+
+            document.body.removeChild(div);
+            sel.removeAllRanges();
+
+            setTimeout(function() {
+                btn.textContent = 'Copy';
+                btn.classList.remove('copied');
+            }, 2000);
+        }
+
         function downloadImage(canvas, text, index) {
-            const link = document.createElement('a');
-            link.download = `qr_${index + 1}_${sanitizeFilename(text)}.png`;
+            var link = document.createElement('a');
+            link.download = 'qr_' + (index + 1) + '_' + sanitizeFilename(text) + '.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
             showToast('Downloaded!');
         }
 
         function createQRCard(text, index, canvas) {
-            const item = document.createElement('div');
+            var item = document.createElement('div');
             item.className = 'qr-item';
 
-            const idxLabel = document.createElement('div');
+            var idxLabel = document.createElement('div');
             idxLabel.className = 'qr-index';
-            idxLabel.textContent = `#${index + 1}`;
+            idxLabel.textContent = '#' + (index + 1);
 
-            const label = document.createElement('div');
+            var label = document.createElement('div');
             label.className = 'qr-label';
             label.textContent = text;
             label.title = text;
 
-            const actions = document.createElement('div');
+            var actions = document.createElement('div');
             actions.className = 'qr-actions';
 
-            const copyBtn = document.createElement('button');
+            var copyBtn = document.createElement('button');
             copyBtn.className = 'btn-copy';
-            copyBtn.textContent = '📋 Copy';
-            copyBtn.onclick = () => copyImage(canvas, copyBtn);
+            copyBtn.textContent = 'Copy';
+            copyBtn.onclick = function() { copyImage(canvas, copyBtn); };
 
-            const downloadBtn = document.createElement('button');
+            var downloadBtn = document.createElement('button');
             downloadBtn.className = 'btn-download';
-            downloadBtn.textContent = '⬇️ Save';
-            downloadBtn.onclick = () => downloadImage(canvas, text, index);
+            downloadBtn.textContent = 'Save';
+            downloadBtn.onclick = function() { downloadImage(canvas, text, index); };
 
             actions.appendChild(copyBtn);
             actions.appendChild(downloadBtn);
@@ -625,30 +638,30 @@ Hello World"></textarea>
             return item;
         }
 
-        async function generateAll() {
-            const input = document.getElementById('inputText').value.trim();
+        function generateAll() {
+            var input = document.getElementById('inputText').value.trim();
             if (!input) {
                 showToast('Please enter some URLs or text first!');
                 return;
             }
 
-            const lines = input.split('
-').map(l => l.trim()).filter(l => l.length > 0);
+            var lines = input.split('
+').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
             if (lines.length === 0) {
                 showToast('No valid entries found!');
                 return;
             }
 
-            const size = parseInt(document.getElementById('qrSize').value) || 200;
-            const errorCorrection = parseInt(document.getElementById('errorCorrection').value);
-            const fgColor = document.getElementById('fgColor').value;
-            const bgColor = document.getElementById('bgColor').value;
+            var size = parseInt(document.getElementById('qrSize').value) || 200;
+            var errorCorrection = parseInt(document.getElementById('errorCorrection').value);
+            var fgColor = document.getElementById('fgColor').value;
+            var bgColor = document.getElementById('bgColor').value;
 
-            const resultsCard = document.getElementById('resultsCard');
-            const qrGrid = document.getElementById('qrGrid');
-            const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
-            const progressText = document.getElementById('progressText');
+            var resultsCard = document.getElementById('resultsCard');
+            var qrGrid = document.getElementById('qrGrid');
+            var progressBar = document.getElementById('progressBar');
+            var progressFill = document.getElementById('progressFill');
+            var progressText = document.getElementById('progressText');
 
             resultsCard.classList.remove('hidden');
             qrGrid.innerHTML = '';
@@ -657,89 +670,95 @@ Hello World"></textarea>
             progressBar.style.display = 'block';
             progressText.style.display = 'block';
 
-            let success = 0;
-            let failed = 0;
+            var success = 0;
+            var failed = 0;
 
             document.getElementById('statTotal').textContent = lines.length;
             document.getElementById('statSuccess').textContent = '0';
             document.getElementById('statFailed').textContent = '0';
 
-            // Process in batches to keep UI responsive
-            const batchSize = 10;
+            function processBatch(startIdx) {
+                if (startIdx >= lines.length) {
+                    progressBar.style.display = 'none';
+                    progressText.style.display = 'none';
+                    showToast('Generated ' + success + ' QR codes successfully!');
+                    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
 
-            for (let i = 0; i < lines.length; i += batchSize) {
-                const batch = lines.slice(i, i + batchSize);
+                var endIdx = Math.min(startIdx + 5, lines.length);
+                var processed = 0;
 
-                await Promise.all(batch.map(async (text, batchIdx) => {
-                    const index = i + batchIdx;
+                for (var i = startIdx; i < endIdx; i++) {
+                    (function(index) {
+                        var text = lines[index];
+                        try {
+                            var tempDiv = document.createElement('div');
+                            tempDiv.style.display = 'none';
+                            document.body.appendChild(tempDiv);
 
-                    try {
-                        const tempDiv = document.createElement('div');
-                        tempDiv.style.display = 'none';
-                        document.body.appendChild(tempDiv);
+                            new QRCode(tempDiv, {
+                                text: text,
+                                width: size,
+                                height: size,
+                                colorDark: fgColor,
+                                colorLight: bgColor,
+                                correctLevel: errorCorrection
+                            });
 
-                        const qr = new QRCode(tempDiv, {
-                            text: text,
-                            width: size,
-                            height: size,
-                            colorDark: fgColor,
-                            colorLight: bgColor,
-                            correctLevel: errorCorrection
-                        });
+                            setTimeout(function() {
+                                var canvas = tempDiv.querySelector('canvas');
+                                if (!canvas) {
+                                    var img = tempDiv.querySelector('img');
+                                    if (img) {
+                                        var c = document.createElement('canvas');
+                                        c.width = size;
+                                        c.height = size;
+                                        var ctx = c.getContext('2d');
+                                        ctx.drawImage(img, 0, 0, size, size);
+                                        generatedQRCodes.push({ canvas: c, text: text, index: index });
+                                        qrGrid.appendChild(createQRCard(text, index, c));
+                                        success++;
+                                    } else {
+                                        failed++;
+                                    }
+                                } else {
+                                    generatedQRCodes.push({ canvas: canvas, text: text, index: index });
+                                    qrGrid.appendChild(createQRCard(text, index, canvas));
+                                    success++;
+                                }
 
-                        // Wait for QR code to render
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                                document.body.removeChild(tempDiv);
+                                document.getElementById('statSuccess').textContent = success;
+                                document.getElementById('statFailed').textContent = failed;
 
-                        const canvas = tempDiv.querySelector('canvas');
-                        if (!canvas) {
-                            const img = tempDiv.querySelector('img');
-                            if (img) {
-                                // Convert img to canvas
-                                const c = document.createElement('canvas');
-                                c.width = size;
-                                c.height = size;
-                                const ctx = c.getContext('2d');
-                                ctx.drawImage(img, 0, 0, size, size);
-                                generatedQRCodes.push({ canvas: c, text: text, index: index });
-                                qrGrid.appendChild(createQRCard(text, index, c));
-                                success++;
-                            } else {
-                                failed++;
+                                processed++;
+                                if (processed === (endIdx - startIdx)) {
+                                    var progress = (endIdx / lines.length) * 100;
+                                    progressFill.style.width = progress + '%';
+                                    progressText.textContent = 'Generating... ' + Math.round(progress) + '% (' + endIdx + '/' + lines.length + ')';
+                                    setTimeout(function() { processBatch(endIdx); }, 50);
+                                }
+                            }, 150);
+                        } catch (err) {
+                            failed++;
+                            document.getElementById('statFailed').textContent = failed;
+                            processed++;
+                            if (processed === (endIdx - startIdx)) {
+                                var progress = (endIdx / lines.length) * 100;
+                                progressFill.style.width = progress + '%';
+                                progressText.textContent = 'Generating... ' + Math.round(progress) + '% (' + endIdx + '/' + lines.length + ')';
+                                setTimeout(function() { processBatch(endIdx); }, 50);
                             }
-                        } else {
-                            generatedQRCodes.push({ canvas: canvas, text: text, index: index });
-                            qrGrid.appendChild(createQRCard(text, index, canvas));
-                            success++;
                         }
-
-                        document.body.removeChild(tempDiv);
-                    } catch (err) {
-                        failed++;
-                        console.error('QR generation failed for:', text, err);
-                    }
-
-                    document.getElementById('statSuccess').textContent = success;
-                    document.getElementById('statFailed').textContent = failed;
-                }));
-
-                const progress = ((i + batch.length) / lines.length) * 100;
-                progressFill.style.width = progress + '%';
-                progressText.textContent = `Generating... ${Math.round(progress)}% (${i + batch.length}/${lines.length})`;
-
-                // Small delay to allow UI to update
-                await new Promise(resolve => setTimeout(resolve, 10));
+                    })(i);
+                }
             }
 
-            progressBar.style.display = 'none';
-            progressText.style.display = 'none';
-
-            showToast(`Generated ${success} QR codes successfully!`);
-
-            // Scroll to results
-            resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            processBatch(0);
         }
 
-        async function downloadAllZip() {
+        function downloadAllZip() {
             if (generatedQRCodes.length === 0) {
                 showToast('No QR codes to download!');
                 return;
@@ -747,19 +766,21 @@ Hello World"></textarea>
 
             showToast('Creating ZIP file...');
 
-            const zip = new JSZip();
-            const folder = zip.folder('qr_codes');
+            var zip = new JSZip();
+            var folder = zip.folder('qr_codes');
 
-            generatedQRCodes.forEach(({ canvas, text, index }) => {
-                const dataUrl = canvas.toDataURL('image/png');
-                const base64 = dataUrl.split(',')[1];
-                const filename = `qr_${index + 1}_${sanitizeFilename(text)}.png`;
+            for (var i = 0; i < generatedQRCodes.length; i++) {
+                var item = generatedQRCodes[i];
+                var dataUrl = item.canvas.toDataURL('image/png');
+                var base64 = dataUrl.split(',')[1];
+                var filename = 'qr_' + (item.index + 1) + '_' + sanitizeFilename(item.text) + '.png';
                 folder.file(filename, base64, { base64: true });
-            });
+            }
 
-            const content = await zip.generateAsync({ type: 'blob' });
-            saveAs(content, 'qr_codes_batch.zip');
-            showToast('ZIP downloaded!');
+            zip.generateAsync({ type: 'blob' }).then(function(content) {
+                saveAs(content, 'qr_codes_batch.zip');
+                showToast('ZIP downloaded!');
+            });
         }
 
         function clearAll() {
@@ -771,6 +792,13 @@ Hello World"></textarea>
             document.getElementById('statFailed').textContent = '0';
             showToast('All cleared!');
         }
+
+        // Attach event listeners after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('generateBtn').addEventListener('click', generateAll);
+            document.getElementById('downloadZipBtn').addEventListener('click', downloadAllZip);
+            document.getElementById('clearBtn').addEventListener('click', clearAll);
+        });
     </script>
 </body>
 </html>
